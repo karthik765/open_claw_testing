@@ -151,9 +151,11 @@
       const ny = (head.y + dir.y * SPEED * dt + H) % H;
       snake.unshift({ x: nx, y: ny });
 
-      // self collision only
-      for (let i = 12; i < snake.length; i++) {
-        if (dist(nx, ny, snake[i].x, snake[i].y) < 9) {
+      // self collision only (ignore nearby body points to avoid false hits on turns)
+      // Since movement is smooth and body is sampled every frame, the first chunk of
+      // points is always close to the head.
+      for (let i = 28; i < snake.length; i++) {
+        if (dist(nx, ny, snake[i].x, snake[i].y) < 6) {
           alive = false;
           return;
         }
