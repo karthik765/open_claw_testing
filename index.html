@@ -1,1 +1,163 @@
-<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Snake</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;background:#0f172a;color:#e2e8f0;font-family:system-ui}canvas{background:#111827;border:2px solid #334155;border-radius:10px}.meta{display:flex;gap:10px;justify-content:center;margin-top:8px}.pill{background:#1e293b;padding:6px 10px;border-radius:99px}</style></head><body><div><h2>Snake Game</h2><canvas id="c" width="400" height="400"></canvas><div class="meta"><span class="pill">Score: <b id="s">0</b></span><span class="pill">Best: <b id="b">0</b></span></div><p>Arrows/WASD · Space restart</p></div><script>const c=document.getElementById('c'),x=c.getContext('2d'),g=20,n=20,S=document.getElementById('s'),B=document.getElementById('b');let sn,d,nd,f,sc,b,ok;function r(){sn=[{x:10,y:10}],d={x:1,y:0},nd={x:1,y:0},sc=0,ok=1,b=+localStorage.getItem('snake-best')||0,p(),draw()}function p(){for(;;){let t={x:Math.floor(Math.random()*n),y:Math.floor(Math.random()*n)};if(!sn.some(v=>v.x===t.x&&v.y===t.y)){f=t;return}}}function set(a,b){if(sn.length>1&&a===-d.x&&b===-d.y)return;nd={x:a,y:b}}addEventListener('keydown',e=>{let k=e.key.toLowerCase();if(k==='arrowup'||k==='w')set(0,-1);if(k==='arrowdown'||k==='s')set(0,1);if(k==='arrowleft'||k==='a')set(-1,0);if(k==='arrowright'||k==='d')set(1,0);if(k===' '&&!ok)r()});function t(){if(!ok)return;d=nd;let h={x:sn[0].x+d.x,y:sn[0].y+d.y};if(h.x<0||h.y<0||h.x>=n||h.y>=n||sn.some(v=>v.x===h.x&&v.y===h.y)){ok=0;return draw()}sn.unshift(h);if(h.x===f.x&&h.y===f.y){sc++;if(sc>b){b=sc;localStorage.setItem('snake-best',b)}p()}else sn.pop();draw()}function draw(){x.fillStyle='#111827';x.fillRect(0,0,400,400);x.fillStyle='#ef4444';x.fillRect(f.x*g+2,f.y*g+2,g-4,g-4);sn.forEach((v,i)=>{x.fillStyle=i?'#16a34a':'#22c55e';x.fillRect(v.x*g+1,v.y*g+1,g-2,g-2)});S.textContent=sc;B.textContent=b;if(!ok){x.fillStyle='rgba(0,0,0,.5)';x.fillRect(0,0,400,400);x.fillStyle='#fff';x.textAlign='center';x.font='bold 30px system-ui';x.fillText('Game Over',200,190);x.font='16px system-ui';x.fillText('Press Space to restart',200,220)}}r();setInterval(t,120);</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake Game</title>
+  <style>
+    body {
+      margin: 0;
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    .wrap {
+      text-align: center;
+    }
+
+    canvas {
+      background: #111827;
+      border: 2px solid #334155;
+      border-radius: 10px;
+    }
+
+    .meta {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 8px;
+    }
+
+    .pill {
+      background: #1e293b;
+      padding: 6px 10px;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Snake Game</h2>
+    <canvas id="c" width="400" height="400"></canvas>
+
+    <div class="meta">
+      <span class="pill">Score: <b id="s">0</b></span>
+      <span class="pill">Best: <b id="b">0</b></span>
+    </div>
+
+    <p>Arrows/WASD · Space restart</p>
+  </div>
+
+  <script>
+    const c = document.getElementById('c');
+    const x = c.getContext('2d');
+    const g = 20;
+    const n = 20;
+    const S = document.getElementById('s');
+    const B = document.getElementById('b');
+
+    let sn, d, nd, f, sc, b, ok;
+
+    function reset() {
+      sn = [{ x: 10, y: 10 }];
+      d = { x: 1, y: 0 };
+      nd = { x: 1, y: 0 };
+      sc = 0;
+      ok = true;
+      b = Number(localStorage.getItem('snake-best') || 0);
+      placeFood();
+      draw();
+    }
+
+    function placeFood() {
+      while (true) {
+        const t = {
+          x: Math.floor(Math.random() * n),
+          y: Math.floor(Math.random() * n)
+        };
+
+        if (!sn.some(v => v.x === t.x && v.y === t.y)) {
+          f = t;
+          return;
+        }
+      }
+    }
+
+    function setDir(dx, dy) {
+      if (sn.length > 1 && dx === -d.x && dy === -d.y) return;
+      nd = { x: dx, y: dy };
+    }
+
+    addEventListener('keydown', e => {
+      const k = e.key.toLowerCase();
+      if (k === 'arrowup' || k === 'w') setDir(0, -1);
+      if (k === 'arrowdown' || k === 's') setDir(0, 1);
+      if (k === 'arrowleft' || k === 'a') setDir(-1, 0);
+      if (k === 'arrowright' || k === 'd') setDir(1, 0);
+      if (k === ' ' && !ok) reset();
+    });
+
+    function tick() {
+      if (!ok) return;
+
+      d = nd;
+      const h = { x: sn[0].x + d.x, y: sn[0].y + d.y };
+
+      if (h.x < 0 || h.y < 0 || h.x >= n || h.y >= n || sn.some(v => v.x === h.x && v.y === h.y)) {
+        ok = false;
+        draw();
+        return;
+      }
+
+      sn.unshift(h);
+
+      if (h.x === f.x && h.y === f.y) {
+        sc++;
+        if (sc > b) {
+          b = sc;
+          localStorage.setItem('snake-best', String(b));
+        }
+        placeFood();
+      } else {
+        sn.pop();
+      }
+
+      draw();
+    }
+
+    function draw() {
+      x.fillStyle = '#111827';
+      x.fillRect(0, 0, 400, 400);
+
+      x.fillStyle = '#ef4444';
+      x.fillRect(f.x * g + 2, f.y * g + 2, g - 4, g - 4);
+
+      sn.forEach((v, i) => {
+        x.fillStyle = i ? '#16a34a' : '#22c55e';
+        x.fillRect(v.x * g + 1, v.y * g + 1, g - 2, g - 2);
+      });
+
+      S.textContent = String(sc);
+      B.textContent = String(b);
+
+      if (!ok) {
+        x.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        x.fillRect(0, 0, 400, 400);
+        x.fillStyle = '#fff';
+        x.textAlign = 'center';
+        x.font = 'bold 30px system-ui';
+        x.fillText('Game Over', 200, 190);
+        x.font = '16px system-ui';
+        x.fillText('Press Space to restart', 200, 220);
+      }
+    }
+
+    reset();
+    setInterval(tick, 120);
+  </script>
+</body>
+</html>
