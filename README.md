@@ -8,3 +8,6 @@ Open `index.html` in your browser.
 ## Controls
 - Arrow keys or WASD to move
 - Space to restart after game over
+
+---
+Built with OpenClaw for karthik765.
