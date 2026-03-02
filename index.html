@@ -3,110 +3,133 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Snake Game</title>
+  <title>Snake Game (2D)</title>
   <style>
     body {
       margin: 0;
       display: grid;
       place-items: center;
       min-height: 100vh;
-      background: #0f172a;
+      background: radial-gradient(circle at top, #1e293b, #0f172a 60%);
       color: #e2e8f0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     }
 
-    .wrap {
-      text-align: center;
-    }
+    .wrap { text-align: center; }
 
     canvas {
-      background: #111827;
+      background: linear-gradient(180deg, #0b1220, #111827);
       border: 2px solid #334155;
-      border-radius: 10px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     }
 
     .meta {
       display: flex;
       gap: 10px;
       justify-content: center;
-      margin-top: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
     }
 
     .pill {
       background: #1e293b;
       padding: 6px 10px;
       border-radius: 999px;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h2>Snake Game</h2>
-    <canvas id="c" width="400" height="400"></canvas>
+    <h2>Snake Game — 2D Mode</h2>
+    <canvas id="c" width="700" height="420"></canvas>
 
     <div class="meta">
       <span class="pill">Score: <b id="s">0</b></span>
       <span class="pill">Best: <b id="b">0</b></span>
+      <span class="pill">Mode: Smooth 2D</span>
     </div>
 
-    <p>Arrows/WASD · Space restart</p>
+    <p>Arrows/WASD to move · Space to restart</p>
   </div>
 
   <script>
     const c = document.getElementById('c');
     const x = c.getContext('2d');
-    const g = 20;
-    const n = 20;
     const S = document.getElementById('s');
     const B = document.getElementById('b');
 
-    let sn, d, nd, f, sc, b, ok;
-    let countdown = 5;
+    const W = c.width;
+    const H = c.height;
+    const SPEED = 140; // px/sec
+    const SEG_GAP = 16;
+    const FOOD_R = 9;
+
+    let score = 0;
+    let best = Number(localStorage.getItem('snake-best') || 0);
+    let alive = true;
     let started = false;
-    let startTimer = null;
+    let countdown = 5;
+
+    let snake = [];
+    let dir = { x: 1, y: 0 };
+    let nextDir = { x: 1, y: 0 };
+    let food = { x: 120, y: 120 };
+
+    let last = performance.now();
+    let timer = null;
 
     function reset() {
-      sn = [{ x: 10, y: 10 }];
-      d = { x: 1, y: 0 };
-      nd = { x: 1, y: 0 };
-      sc = 0;
-      ok = true;
+      snake = [];
+      const startX = W / 2;
+      const startY = H / 2;
+      for (let i = 0; i < 12; i++) {
+        snake.push({ x: startX - i * SEG_GAP, y: startY });
+      }
+
+      dir = { x: 1, y: 0 };
+      nextDir = { x: 1, y: 0 };
+      score = 0;
+      alive = true;
       started = false;
       countdown = 5;
-      b = Number(localStorage.getItem('snake-best') || 0);
       placeFood();
 
-      if (startTimer) clearInterval(startTimer);
-      startTimer = setInterval(() => {
-        countdown -= 1;
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        countdown--;
         if (countdown <= 0) {
           started = true;
-          clearInterval(startTimer);
-          startTimer = null;
+          clearInterval(timer);
+          timer = null;
         }
-        draw();
       }, 1000);
+    }
 
-      draw();
+    function random(min, max) {
+      return Math.random() * (max - min) + min;
     }
 
     function placeFood() {
-      while (true) {
-        const t = {
-          x: Math.floor(Math.random() * n),
-          y: Math.floor(Math.random() * n)
-        };
-
-        if (!sn.some(v => v.x === t.x && v.y === t.y)) {
-          f = t;
-          return;
-        }
+      let safe = false;
+      while (!safe) {
+        food.x = random(30, W - 30);
+        food.y = random(30, H - 30);
+        safe = !snake.some(s => dist(s.x, s.y, food.x, food.y) < 24);
       }
     }
 
+    function dist(x1, y1, x2, y2) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      return Math.hypot(dx, dy);
+    }
+
     function setDir(dx, dy) {
-      if (sn.length > 1 && dx === -d.x && dy === -d.y) return;
-      nd = { x: dx, y: dy };
+      if (!alive) return;
+      if (dx === -dir.x && dy === -dir.y) return;
+      nextDir = { x: dx, y: dy };
     }
 
     addEventListener('keydown', e => {
@@ -115,139 +138,147 @@
       if (k === 'arrowdown' || k === 's') setDir(0, 1);
       if (k === 'arrowleft' || k === 'a') setDir(-1, 0);
       if (k === 'arrowright' || k === 'd') setDir(1, 0);
-      if (k === ' ' && !ok) reset();
+      if (k === ' ' && !alive) reset();
     });
 
-    function tick() {
-      if (!ok || !started) {
-        draw();
-        return;
-      }
+    function update(dt) {
+      if (!alive || !started) return;
 
-      d = nd;
-      const h = {
-        x: (sn[0].x + d.x + n) % n,
-        y: (sn[0].y + d.y + n) % n
-      };
+      dir = nextDir;
 
-      // only tail/self collision should end game
-      if (sn.some(v => v.x === h.x && v.y === h.y)) {
-        ok = false;
-        draw();
-        return;
-      }
+      const head = snake[0];
+      const nx = (head.x + dir.x * SPEED * dt + W) % W;
+      const ny = (head.y + dir.y * SPEED * dt + H) % H;
+      snake.unshift({ x: nx, y: ny });
 
-      sn.unshift(h);
-
-      if (h.x === f.x && h.y === f.y) {
-        sc++;
-        if (sc > b) {
-          b = sc;
-          localStorage.setItem('snake-best', String(b));
+      // self collision only
+      for (let i = 12; i < snake.length; i++) {
+        if (dist(nx, ny, snake[i].x, snake[i].y) < 9) {
+          alive = false;
+          return;
         }
+      }
+
+      // eat food
+      if (dist(nx, ny, food.x, food.y) < 14) {
+        score += 1;
+        if (score > best) {
+          best = score;
+          localStorage.setItem('snake-best', String(best));
+        }
+        // grow by leaving tail as-is this frame
         placeFood();
       } else {
-        sn.pop();
+        // keep body length based on score
+        const targetLen = 12 + score * 2;
+        while (snake.length > targetLen) snake.pop();
       }
-
-      draw();
     }
 
-    function drawMouse(foodX, foodY) {
-      const cx = foodX * g + g / 2;
-      const cy = foodY * g + g / 2;
+    function drawMouse() {
+      const cx = food.x;
+      const cy = food.y;
 
-      // body
       x.fillStyle = '#d1d5db';
       x.beginPath();
-      x.ellipse(cx, cy, g * 0.32, g * 0.24, 0, 0, Math.PI * 2);
+      x.ellipse(cx, cy, 10, 7, 0, 0, Math.PI * 2);
       x.fill();
 
-      // ears
       x.fillStyle = '#fda4af';
       x.beginPath();
       x.arc(cx - 5, cy - 5, 3, 0, Math.PI * 2);
       x.arc(cx + 5, cy - 5, 3, 0, Math.PI * 2);
       x.fill();
 
-      // eye
       x.fillStyle = '#111827';
       x.beginPath();
       x.arc(cx + 3, cy - 1, 1.2, 0, Math.PI * 2);
       x.fill();
 
-      // tail
       x.strokeStyle = '#f9a8d4';
-      x.lineWidth = 1.5;
+      x.lineWidth = 2;
       x.beginPath();
-      x.moveTo(cx - 7, cy + 2);
-      x.quadraticCurveTo(cx - 12, cy + 4, cx - 14, cy + 8);
+      x.moveTo(cx - 9, cy + 2);
+      x.quadraticCurveTo(cx - 16, cy + 4, cx - 20, cy + 11);
       x.stroke();
     }
 
     function drawSnake() {
-      sn.forEach((v, i) => {
-        const cx = v.x * g + g / 2;
-        const cy = v.y * g + g / 2;
-
-        x.fillStyle = i ? '#22c55e' : '#4ade80';
+      for (let i = snake.length - 1; i >= 0; i--) {
+        const p = snake[i];
+        const t = i / snake.length;
+        const r = 4 + (1 - t) * 4;
+        x.fillStyle = i === 0 ? '#4ade80' : `rgba(34,197,94,${0.5 + (1 - t) * 0.4})`;
         x.beginPath();
-        x.arc(cx, cy, g * 0.4, 0, Math.PI * 2);
+        x.arc(p.x, p.y, r, 0, Math.PI * 2);
         x.fill();
+      }
 
-        if (i === 0) {
-          const ex = d.x === 0 ? 3 : d.x * 3;
-          const ey = d.y === 0 ? 3 : d.y * 3;
+      const h = snake[0];
+      if (!h) return;
 
-          x.fillStyle = '#fff';
-          x.beginPath();
-          x.arc(cx - ey, cy - ex, 2.1, 0, Math.PI * 2);
-          x.arc(cx + ey, cy + ex, 2.1, 0, Math.PI * 2);
-          x.fill();
+      const ex = dir.x === 0 ? 3 : dir.x * 3;
+      const ey = dir.y === 0 ? 3 : dir.y * 3;
 
-          x.fillStyle = '#111827';
-          x.beginPath();
-          x.arc(cx - ey, cy - ex, 1, 0, Math.PI * 2);
-          x.arc(cx + ey, cy + ex, 1, 0, Math.PI * 2);
-          x.fill();
-        }
-      });
+      x.fillStyle = '#fff';
+      x.beginPath();
+      x.arc(h.x + ey, h.y + ex, 2.2, 0, Math.PI * 2);
+      x.arc(h.x - ey, h.y - ex, 2.2, 0, Math.PI * 2);
+      x.fill();
+
+      x.fillStyle = '#111827';
+      x.beginPath();
+      x.arc(h.x + ey, h.y + ex, 1.1, 0, Math.PI * 2);
+      x.arc(h.x - ey, h.y - ex, 1.1, 0, Math.PI * 2);
+      x.fill();
     }
 
-    function drawOverlay(text1, text2 = '') {
-      x.fillStyle = 'rgba(0, 0, 0, 0.55)';
-      x.fillRect(0, 0, 400, 400);
+    function overlay(t1, t2 = '') {
+      x.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      x.fillRect(0, 0, W, H);
       x.fillStyle = '#fff';
       x.textAlign = 'center';
-      x.font = 'bold 28px system-ui';
-      x.fillText(text1, 200, 188);
-      if (text2) {
+      x.font = 'bold 34px system-ui';
+      x.fillText(t1, W / 2, H / 2 - 8);
+      if (t2) {
         x.font = '16px system-ui';
-        x.fillText(text2, 200, 220);
+        x.fillText(t2, W / 2, H / 2 + 24);
       }
     }
 
-    function draw() {
-      x.fillStyle = '#111827';
-      x.fillRect(0, 0, 400, 400);
+    function render() {
+      x.clearRect(0, 0, W, H);
 
-      drawMouse(f.x, f.y);
+      // subtle grid
+      x.strokeStyle = 'rgba(148,163,184,0.08)';
+      x.lineWidth = 1;
+      for (let i = 0; i <= W; i += 20) {
+        x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke();
+      }
+      for (let i = 0; i <= H; i += 20) {
+        x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke();
+      }
+
+      drawMouse();
       drawSnake();
 
-      S.textContent = String(sc);
-      B.textContent = String(b);
+      S.textContent = String(score);
+      B.textContent = String(best);
 
-      if (!started && ok) {
-        drawOverlay(`Starting in ${countdown}...`, 'Get ready!');
-      }
+      if (!started && alive) overlay(`Starting in ${countdown}...`, 'Get ready!');
+      if (!alive) overlay('Game Over', 'Press Space to restart');
+    }
 
-      if (!ok) {
-        drawOverlay('Game Over', 'Press Space to restart');
-      }
+    function loop(ts) {
+      const dt = Math.min(0.032, (ts - last) / 1000);
+      last = ts;
+      update(dt);
+      render();
+      requestAnimationFrame(loop);
     }
 
     reset();
-    setInterval(tick, 120);
+    requestAnimationFrame(loop);
   </script>
 </body>
 </html>
